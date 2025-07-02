@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flight Control Simulator</title>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    select, input, button { margin: 5px 0; }
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th, td { border:1px solid #ccc; padding:8px; text-align:left; }
+  </style>
+</head>
+<body>
+  <h1>Flight Control Simulator</h1>
+
+  <h2>1. Schedule a Flight</h2>
+  <label>Pilot:
+    <select id="pilotSelect"></select>
+  </label><br>
+  <label>Aircraft:
+    <select id="aircraftSelect"></select>
+  </label><br>
+  <label>Flight Plan: <input type="text" id="flightPlan"></label><br>
+  <label>Departure: <input type="datetime-local" id="departureTime"></label><br>
+  <button id="btnSchedule">Schedule</button>
+
+  <h2>2. Upcoming Flights</h2>
+  <button id="btnView">Refresh</button>
+  <table><thead>
+    <tr><th>ID</th><th>Pilot</th><th>Aircraft</th><th>Plan</th><th>Departure</th><th>Actions</th></tr>
+  </thead><tbody id="upcomingBody"></tbody></table>
+
+  <h2>3. Flight History</h2>
+  <button id="btnHistory">Load History</button>
+  <table><thead>
+    <tr><th>ID</th><th>Pilot</th><th>Aircraft</th><th>Plan</th><th>Departure</th></tr>
+  </thead><tbody id="historyBody"></tbody></table>
+
+  <h2>4. Get Weather</h2>
+  <label>Lat: <input type="number" step="0.0001" id="lat"></label>
+  <label>Lon: <input type="number" step="0.0001" id="lon"></label>
+  <button id="btnWeather">Fetch</button>
+  <pre id="weatherOut"></pre>
+
+  <script>
+    const pilotSel = document.getElementById('pilotSelect');
+    const craftSel = document.getElementById('aircraftSelect');
+    const loadList = (url, sel) => fetch(url).then(r => r.json()).then(arr => {
+      sel.innerHTML = arr.map(o => `<option value=${o.pilot_id||o.aircraft_id}>
+        ${o.name||o.model} (${o.pilot_id||o.aircraft_id})</option>`).join('');
+    });
+
+    // Populate pilots and aircraft
+    loadList('/pilots', pilotSel);
+    loadList('/aircraft', craftSel);
+
+    document.getElementById('btnSchedule').onclick = () => {
+      const data = {
+        flight_id: Math.floor(Math.random()*1000),
+        pilot_id: +pilotSel.value,
+        aircraft_id: +craftSel.value,
+        flight_plan: document.getElementById('flightPlan').value,
+        departure_time: new Date(document.getElementById('departureTime').value).toISOString()
+      };
+      fetch('/flights/schedule', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+      })
+      .then(r => r.text()).then(alert);
+    };
+
+    function renderFlights(url, tbody, includeActions=false) {
+      fetch(url).then(r => r.json()).then(arr => {
+        tbody.innerHTML = arr.map(f => `
+          <tr>
+            <td>${f.flight_id}</td>
+            <td>${f.pilot_id}</td>
+            <td>${f.aircraft_id}</td>
+            <td>${f.flight_plan}</td>
+            <td>${new Date(f.departure_time).toLocaleString()}</td>
+            ${includeActions
+              ? `<td>
+                   <button onclick="updatePlan(${f.flight_id})">✎</button>
+                   <button onclick="cancel(${f.flight_id})">✖</button>
+                 </td>` : '<td/>'}
+          </tr>`).join('');
+      });
+    }
+
+    document.getElementById('btnView').onclick = () =>
+      renderFlights('/flights/view', document.getElementById('upcomingBody'), true);
+
+    document.getElementById('btnHistory').onclick = () =>
+      renderFlights('/flights/history', document.getElementById('historyBody'), false);
+
+    window.cancel = id => {
+      if (!confirm('Cancel flight '+id+'?')) return;
+      fetch(`/flights/${id}`, {method:'DELETE'}).then(r => r.text()).then(alert);
+    };
+
+    window.updatePlan = id => {
+      const newPlan = prompt('New plan for '+id);
+      if (newPlan) {
+        fetch(`/flights/${id}/plan`, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(newPlan)
+        }).then(r=>r.text()).then(alert);
+      }
+    };
+
+    document.getElementById('btnWeather').onclick = () => {
+      const lat = +document.getElementById('lat').value;
+      const lon = +document.getElementById('lon').value;
+      fetch(`/weather?latitude=${lat}&longitude=${lon}`)
+        .then(r=>r.json()).then(j=> {
+          document.getElementById('weatherOut').textContent = JSON.stringify(j, null, 2);
+        });
+    };
+  </script>
+</body>
+</html>

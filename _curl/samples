@@ -1,0 +1,21 @@
+1. Successful Scheduling
+curl -X POST http://127.0.0.1:8080/flights/schedule \
+-H "Content-Type: application/json" \
+-d '{"flight_id": 1, "pilot_id": 101, "aircraft_id": 202, "flight_plan": "Plan ABC", "departure_time": "2030-01-01T10:00:00Z"}'
+
+curl -X POST http://127.0.0.1:8080/flights/schedule \
+-H "Content-Type: application/json" \
+-d '{"flight_id": 2, "pilot_id": 102, "aircraft_id": 203, "flight_plan": "Plan ABCD", "departure_time": "2031-01-01T10:00:00Z"}'
+
+2. Missing Flight Plan
+curl -X POST http://127.0.0.1:8080/flights/schedule \
+-H "Content-Type: application/json" \
+-d '{"flight_id": 2, "pilot_id": 102, "aircraft_id": 202, "flight_plan": "", "departure_time": "2025-01-01T10:00:00Z"}'
+
+3. Departure Time in the Past
+curl -X POST http://127.0.0.1:8080/flights/schedule \
+-H "Content-Type: application/json" \
+-d '{"flight_id": 3, "pilot_id": 103, "aircraft_id": 202, "flight_plan": "Plan DEF", "departure_time": "2020-01-01T10:00:00Z"}'
+
+4. Check scheudled flight
+curl -X GET http://127.0.0.1:8080/flights/view
